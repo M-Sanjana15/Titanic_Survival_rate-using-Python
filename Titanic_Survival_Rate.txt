@@ -1,0 +1,66 @@
+# Step 1: Import Libraries
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Step 2: Load the Dataset
+df = pd.read_csv('Titanic-Dataset.csv')  # Replace with actual path
+
+
+# Step 3: Data Cleaning
+df.drop(['Cabin', 'Name', 'Ticket'], axis=1, inplace=True)  # Drop less useful columns
+df['Age'].fillna(df['Age'].median(), inplace=True)
+df['Embarked'].fillna(df['Embarked'].mode()[0], inplace=True)
+
+# Step 4: Encode Categorical Variables
+label_encoders = {}
+for col in ['Sex', 'Embarked']:
+    le = LabelEncoder()
+    df[col] = le.fit_transform(df[col])
+    label_encoders[col] = le
+
+# Step 5: Feature Selection
+X = df.drop('Survived', axis=1)
+y = df['Survived']
+
+# Step 6: Train-Test Split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Step 7: Model Training
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+# Step 8: Predictions and Evaluation
+y_pred = model.predict(X_test)
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("\nClassification Report:\n", classification_report(y_test, y_pred))
+
+# Step 9: Feature Importance Visualization
+feature_importance = pd.Series(model.feature_importances_, index=X.columns)
+feature_importance.sort_values().plot(kind='barh', figsize=(10,6), title=' Importance')
+plt.tight_layout()
+plt.show()
+
+# Add predictions to the test set
+X_test_copy = X_test.copy()
+X_test_copy['Predicted_Survived'] = y_pred
+
+# Optionally, add passenger ID if available
+if 'PassengerId' in df.columns:
+X_test_copy['PassengerId'] = df.loc[X_test_copy.index, 'PassengerId']
+
+# Decode gender for readability
+X_test_copy['Sex'] = df.loc[X_test_copy.index, 'Sex']
+X_test_copy['Sex'] = label_encoders['Sex'].inverse_transform(X_test_copy['Sex'])
+
+# Map prediction to readable labels
+X_test_copy['Prediction_Label'] = X_test_copy['Predicted_Survived'].map({0: 'Not Survived', 1: 'Survived'})
+
+# Display the first few predictions
+print(X_test_copy[['PassengerId', 'Sex', 'Age', 'Pclass', 'Prediction_Label']].head(10))
+
